@@ -149,6 +149,12 @@
       }
       return keys;
     },
+    
+    getScreenRatio: function(keys){
+      var resolution=this.getScreenResolution();
+      return resolution[0]/resolution[1];
+    },
+    
     availableScreenResolutionKey: function(keys) {
       if (!this.options.excludeAvailableScreenResolution) {
         return this.getAvailableScreenResolution(keys);
