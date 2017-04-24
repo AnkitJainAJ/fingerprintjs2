@@ -59,6 +59,10 @@
       keys = this.pixelRatioKey(keys);
       keys = this.hardwareConcurrencyKey(keys);
       keys = this.screenResolutionKey(keys);
+      keys = this.screenRatioKey(keys);
+      keys = this.operatingSystemKey(keys);
+      keys = this.browserWithMajorVersionKey(keys);
+      keys = this.hardwareArchitectureKey(keys);
       keys = this.availableScreenResolutionKey(keys);
       keys = this.timezoneOffsetKey(keys);
       keys = this.sessionStorageKey(keys);
@@ -70,8 +74,10 @@
       keys = this.platformKey(keys);
       keys = this.doNotTrackKey(keys);
       keys = this.pluginsKey(keys);
-      keys = this.canvasKey(keys);
-      keys = this.webglKey(keys);
+      keys = this.pluginsNamekey(keys);
+      //keys = this.canvasKey(keys);
+      keys = this.getCanvasShort(keys);
+      //keys = this.webglKey(keys);
       keys = this.adBlockKey(keys);
       keys = this.hasLiedLanguagesKey(keys);
       keys = this.hasLiedResolutionKey(keys);
@@ -131,12 +137,85 @@
     getPixelRatio: function() {
       return window.devicePixelRatio || "";
     },
+
+    hardwareArchitectureKey: function(keys){
+      var userAgent = navigator.userAgent.toLowerCase();
+      var patt=/\(.*?;\s+(.*?)[;)]/
+      var archWithVersion=userAgent.match(patt)[1];
+      var archWithoutVersion=archWithVersion.replace(/\d+|[_.]|\W+/g,"");
+      keys.push({key:"hardwareArchitecture", value: archWithoutVersion});
+      return keys;
+    },
+
+    browserWithMajorVersionKey: function(keys){
+      var userAgent = navigator.userAgent.toLowerCase();
+      
+      //we extract the browser from the user agent (respect the order of the tests)
+      var browser;
+      var patt;
+      if(userAgent.indexOf("firefox") >= 0){
+        patt=/firefox\/\d*/i;
+        browser=userAgent.match(patt)[0];
+        // browser = "Firefox";
+      } else if(userAgent.indexOf("opera") >= 0 || userAgent.indexOf("opr") >= 0){
+        patt=/opr\/\d*|opera\/\d*/i;
+        browser=userAgent.match(patt)[0];
+        // browser = "Opera";
+      } else if(userAgent.indexOf("chrome") >= 0){
+        patt=/chrome\/\d*/i;
+        browser=userAgent.match(patt)[0];
+        // browser = "Chrome";
+      } else if(userAgent.indexOf("safari") >= 0){
+        patt=/safari\/\d*/i;
+        browser=userAgent.match(patt)[0];
+        // browser = "Safari";
+      } else if(userAgent.indexOf("trident") >= 0){
+        patt=/trident\/\d*/i;
+        browser=userAgent.match(patt)[0];
+        // browser = "Internet Explorer";
+      } else{
+        browser = "Other";
+      }
+      keys.push({key: "browser_name",value: browser});
+      return keys;
+    },
+
+    operatingSystemKey: function(keys){
+      var userAgent = navigator.userAgent.toLowerCase();
+      var os;
+      //We extract the OS from the user agent (respect the order of the if else if statement)
+      if(userAgent.indexOf("windows phone") >= 0){
+        os = "Windows Phone";
+      } else if(userAgent.indexOf("win") >= 0){
+        os = "Windows";
+      } else if(userAgent.indexOf("android") >= 0){
+        os = "Android";
+      } else if(userAgent.indexOf("linux") >= 0){
+        os = "Linux";
+      } else if(userAgent.indexOf("iphone") >= 0 || userAgent.indexOf("ipad") >= 0 ){
+        os = "iOS";
+      } else if(userAgent.indexOf("mac") >= 0){
+        os = "Mac";
+      } 
+      else{
+        os = "Other";
+      }
+      keys.push({key: "os_name",value: os});
+      return keys;
+    },
+
     screenResolutionKey: function(keys) {
       if(!this.options.excludeScreenResolution) {
         return this.getScreenResolution(keys);
       }
       return keys;
     },
+
+    screenRatioKey: function(keys){
+      keys.push({key: "screen_ratio",value: screen.width/screen.height});
+      return keys;
+    },
+
     getScreenResolution: function(keys) {
       var resolution;
       if(this.options.detectScreenOrientation) {
@@ -149,12 +228,6 @@
       }
       return keys;
     },
-    
-    getScreenRatio: function(keys){
-      var resolution=this.getScreenResolution();
-      return resolution[0]/resolution[1];
-    },
-    
     availableScreenResolutionKey: function(keys) {
       if (!this.options.excludeAvailableScreenResolution) {
         return this.getAvailableScreenResolution(keys);
@@ -491,6 +564,25 @@
       }
       return keys;
     },
+
+    pluginsNamekey: function(keys) {
+      var pluginsNames;
+      if(this.isIE()){
+          if(!this.options.excludeIEPlugins) {
+            pluginsNames=this.getIEPlugins();
+          }
+      } else {
+          pluginsNames=this.getRegularPlugins();
+      }
+      var patt=/(.*?)::/
+      var plugins=[];
+      for (var i=0;i<pluginsNames.length;i++){
+        plugins.push(pluginsNames[i].match(patt)[1])
+      }
+      keys.push({key:"plugins",value: plugins});
+      return keys;
+    },
+
     getRegularPlugins: function () {
       var plugins = [];
       for(var i = 0, l = navigator.plugins.length; i < l; i++) {
@@ -714,6 +806,138 @@
       result.push("canvas fp:" + canvas.toDataURL());
       return result.join("~");
     },
+
+    getCanvasShort:function(keys){
+      var canvasFp=this.getCanvasFp();
+      var shortCanvas=this.Base64EncodeUrlSafe(this.calcSHA1(canvasFp.substring(22, canvasFp.length)));
+      keys.push({key: "canvasShort", value: shortCanvas});
+      return keys;
+    },
+
+    /*
+ * A JavaScript implementation of the Secure Hash Algorithm, SHA-1, as defined
+ * in FIPS PUB 180-1
+ * Copyright (C) Paul Johnston 2000.
+ * See http://pajhome.org.uk/site/legal.html for details.
+ */
+
+/*
+ * Convert a 32-bit number to a hex string with ms-byte first
+ */
+
+Base64EncodeUrlSafe : function(str) {
+  return str.replace(/\+/g, '-').replace(/\//g, '_').replace(/\=+$/, '');
+},
+
+hex:function(num)
+{
+  var hex_chr = "0123456789abcdef";
+  var str = "";
+  for(var j = 7; j >= 0; j--)
+    str += hex_chr.charAt((num >> (j * 4)) & 0x0F);
+  return str;
+},
+
+/*
+ * Convert a string to a sequence of 16-word blocks, stored as an array.
+ * Append padding bits and the length, as described in the SHA1 standard.
+ */
+str2blks_SHA1:function(str)
+{
+  var nblk = ((str.length + 8) >> 6) + 1;
+  var blks = new Array(nblk * 16);
+  for(var i = 0; i < nblk * 16; i++) blks[i] = 0;
+  for(i = 0; i < str.length; i++)
+    blks[i >> 2] |= str.charCodeAt(i) << (24 - (i % 4) * 8);
+  blks[i >> 2] |= 0x80 << (24 - (i % 4) * 8);
+  blks[nblk * 16 - 1] = str.length * 8;
+  return blks;
+},
+
+/*
+ * Add integers, wrapping at 2^32. This uses 16-bit operations internally 
+ * to work around bugs in some JS interpreters.
+ */
+add:function(x, y)
+{
+  var lsw = (x & 0xFFFF) + (y & 0xFFFF);
+  var msw = (x >> 16) + (y >> 16) + (lsw >> 16);
+  return (msw << 16) | (lsw & 0xFFFF);
+},
+
+/*
+ * Bitwise rotate a 32-bit number to the left
+ */
+rol:function(num, cnt)
+{
+  return (num << cnt) | (num >>> (32 - cnt));
+},
+
+/*
+ * Perform the appropriate triplet combination function for the current
+ * iteration
+ */
+ft:function(t, b, c, d)
+{
+  if(t < 20) return (b & c) | ((~b) & d);
+  if(t < 40) return b ^ c ^ d;
+  if(t < 60) return (b & c) | (b & d) | (c & d);
+  return b ^ c ^ d;
+},
+
+/*
+ * Determine the appropriate additive constant for the current iteration
+ */
+kt:function(t)
+{
+  return (t < 20) ?  1518500249 : (t < 40) ?  1859775393 :
+         (t < 60) ? -1894007588 : -899497514;
+},
+
+/*
+ * Take a string and return the hex representation of its SHA-1.
+ */
+calcSHA1: function(str)
+{
+  var x = this.str2blks_SHA1(str);
+  var w = new Array(80);
+
+  var a =  1732584193;
+  var b = -271733879;
+  var c = -1732584194;
+  var d =  271733878;
+  var e = -1009589776;
+  var t;
+
+  for(var i = 0; i < x.length; i += 16)
+  {
+    var olda = a;
+    var oldb = b;
+    var oldc = c;
+    var oldd = d;
+    var olde = e;
+
+    for(var j = 0; j < 80; j++)
+    {
+      if(j < 16) w[j] = x[i + j];
+      else w[j] = this.rol(w[j-3] ^ w[j-8] ^ w[j-14] ^ w[j-16], 1);
+      t = this.add(this.add(this.rol(a, 5), this.ft(j, b, c, d)), this.add(this.add(e, w[j]), this.kt(j)));
+      e = d;
+      d = c;
+      c = this.rol(b, 30);
+      b = a;
+      a = t;
+    }
+
+    a = this.add(a, olda);
+    b = this.add(b, oldb);
+    c = this.add(c, oldc);
+    d = this.add(d, oldd);
+    e = this.add(e, olde);
+  }
+  return this.hex(a) + this.hex(b) + this.hex(c) + this.hex(d) + this.hex(e);
+},
+
 
     getWebglFp: function() {
       var gl;
@@ -1283,3 +1507,11 @@
   Fingerprint2.VERSION = "1.5.1";
   return Fingerprint2;
 });
+
+
+new Fingerprint2().get(function(result, components){
+  console.log(result); //a hash, representing your device fingerprint
+  console.log(JSON.stringify(components)); // an array of FP components
+});
+
+
