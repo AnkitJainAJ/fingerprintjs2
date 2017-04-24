@@ -75,9 +75,9 @@
       keys = this.doNotTrackKey(keys);
       keys = this.pluginsKey(keys);
       keys = this.pluginsNamekey(keys);
-      //keys = this.canvasKey(keys);
+      keys = this.canvasKey(keys);
       keys = this.getCanvasShort(keys);
-      //keys = this.webglKey(keys);
+      keys = this.webglKey(keys);
       keys = this.adBlockKey(keys);
       keys = this.hasLiedLanguagesKey(keys);
       keys = this.hasLiedResolutionKey(keys);
